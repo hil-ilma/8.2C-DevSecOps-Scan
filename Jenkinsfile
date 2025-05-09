@@ -1,6 +1,12 @@
 pipeline {
   agent any
 
+  // Avoid Jenkins’s built-in checkout: we’ll do it ourselves
+  options {
+    skipDefaultCheckout()
+  }
+
+  // Tell the app it’s in test mode
   environment {
     NODE_ENV = 'test'
   }
@@ -8,7 +14,7 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        // pull your GitHub repo using the job’s SCM configuration & credentials
+        // This uses the job’s SCM config + credentials
         checkout scm
       }
     }
@@ -40,7 +46,7 @@ pipeline {
 
   post {
     always {
-      // archive anything under coverage/ plus npm logs
+      // Archive your coverage folder and any npm-debug.log
       archiveArtifacts artifacts: 'coverage/**,npm-debug.log', fingerprint: true
     }
   }
