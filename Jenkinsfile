@@ -1,37 +1,59 @@
 pipeline {
-  agent any
+  /* Use Node 18 LTS image so we have npm/node available */
+  agent {
+    docker {
+      image 'node:18'
+      args  '-u root'       // run as root so installs write to workspace
+    }
+  }
+
+  /* Ensure our app sees TEST mode */
+  environment {
+    NODE_ENV = 'test'
+  }
+
+  /* Prevent the automatic "Declarative: Checkout SCM" stage */
+  options {
+    skipDefaultCheckout()
+  }
 
   stages {
     stage('Checkout') {
       steps {
-        git url: 'https://github.com/<your-username>/8.2C-DevSecOps-Scan.git', branch: 'main'
+        /* explicit Git checkout */
+        checkout scm
       }
     }
+
     stage('Install Dependencies') {
       steps {
         sh 'npm install'
       }
     }
+
     stage('Run Tests') {
       steps {
-        // allow test failures to see audit/coverage regardless
-        sh 'npm test || true'
+        /* our npm test uses cross-env and stubs DB/routers */
+        sh 'npm test'
       }
     }
+
     stage('Coverage') {
       steps {
-        sh 'npm run coverage || true'
+        sh 'npm run coverage'
       }
     }
+
     stage('Security Scan') {
       steps {
+        /* audit won’t fail the build by default */
         sh 'npm audit || true'
       }
     }
   }
+
   post {
     always {
-      // archive coverage reports and npm audit logs
       archiveArtifacts artifacts: 'coverage/**,npm-debug.log', fingerprint: true
     }
   }
