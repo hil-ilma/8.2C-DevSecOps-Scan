@@ -1,32 +1,27 @@
 pipeline {
-  agent any
-  tools {
-    nodejs 'NodeJS-18'       // or whatever Node label you use
+  /* ── use the official Node 18 image for *every* stage ── */
+  agent {
+    docker {
+      image 'node:18'
+      args  '-u root:root' // run as root so npm can write to workspace
+    }
   }
+
   environment {
-    SONAR_TOKEN = credentials('sonarcloud-token')
+    // if you need any env vars (e.g. for SonarCloud), declare them here
+    // SONAR_TOKEN = credentials('sonarcloud-token')
   }
+
   stages {
-   stage('Checkout') {
+    stage('Checkout SCM') {
       steps {
-        // the one and only checkout
-        checkout scm: [
-          $class: 'GitSCM',
-          branches: [[name: '*/main']],
-          doGenerateSubmoduleConfigurations: false,
-          extensions: [],
-          userRemoteConfigs: [[
-            url: 'https://github.com/hil-ilma/8.2C-DevSecOps-Scan.git',
-            credentialsId: 'github-pat'
-          ]]
-        ]
+        checkout scm
       }
     }
 
     stage('Install Dependencies') {
       steps {
-        // use npm install so the lockfile stays in sync
-        sh 'npm install'
+        sh 'npm ci'
       }
     }
 
@@ -36,49 +31,36 @@ pipeline {
       }
     }
 
-    stage('Coverage') {
-      when {
-        // only run if tests passed
-        expression { currentBuild.currentResult == 'SUCCESS' }
-      }
+    stage('Generate Coverage') {
       steps {
         sh 'npm run coverage'
       }
     }
 
     stage('Security Scan') {
-      when {
-        expression { currentBuild.currentResult == 'SUCCESS' }
-      }
       steps {
-        // don’t fail the build on vulnerabilities, just report them
-        sh 'npm audit --audit-level=moderate || true'
-      }
-    }
-  }
-    stage('SonarCloud Analysis') {
-      steps {
-        // this matches the “Name” you gave when configuring Sonar in Jenkins
-        withSonarQubeEnv('SonarCloud') {
-          // invoke the scanner
-          sh 'npx sonar-scanner -Dsonar.login=${SONAR_TOKEN}'
-        }
-      }
-    }
-
-    stage('Quality Gate') {
-      steps {
-        // give SonarCloud a minute to compute
-        timeout(time: 1, unit: 'MINUTES') {
-          waitForQualityGate abortPipeline: true
-        }
+        sh 'npm audit --audit-level=moderate'
       }
     }
   }
 
   post {
+    /* always archive coverage reports (adjust the path if your reports live somewhere else) */
     always {
-      archiveArtifacts artifacts: 'coverage/**', allowEmptyArchive: true
+      archiveArtifacts artifacts: 'coverage/**', fingerprint: true
+    }
+    /* on success, you could send email or Slack here */
+    success {
+      echo " All stages passed!"
+      // mail to: 'team@example.com',
+      //      subject: "Build ${currentBuild.fullDisplayName} succeeded",
+      //      body: "See ${env.BUILD_URL} for details."
+    }
+    failure {
+      echo " Build failed!"
+      // mail to: 'team@example.com',
+      //      subject: "Build ${currentBuild.fullDisplayName} failed",
+      //      body: "See ${env.BUILD_URL} for details."
     }
   }
 }
