@@ -1,27 +1,16 @@
 pipeline {
   agent any
 
-  // Avoid Jenkins’s built-in checkout: we’ll do it ourselves
-  options {
-    skipDefaultCheckout()
-  }
-
-  // Tell the app it’s in test mode
-  environment {
-    NODE_ENV = 'test'
-  }
-
   stages {
     stage('Checkout') {
       steps {
-        // This uses the job’s SCM config + credentials
         checkout scm
       }
     }
 
     stage('Install Dependencies') {
       steps {
-        sh 'npm install'
+        sh 'npm ci'
       }
     }
 
@@ -31,7 +20,7 @@ pipeline {
       }
     }
 
-    stage('Generate Coverage Report') {
+    stage('Coverage') {
       steps {
         sh 'npm run coverage'
       }
@@ -39,15 +28,14 @@ pipeline {
 
     stage('Security Scan') {
       steps {
-        sh 'npm audit || true'
+        sh 'npm audit --audit-level=moderate || true'
       }
     }
   }
 
   post {
     always {
-      // Archive your coverage folder and any npm-debug.log
-      archiveArtifacts artifacts: 'coverage/**,npm-debug.log', fingerprint: true
+      archiveArtifacts artifacts: '**/coverage/*.txt', allowEmptyArchive: true
     }
   }
 }
