@@ -14,17 +14,23 @@ pipeline {
     }
 
     stage('Test & Coverage') {
-      steps {
-        sh 'npm test'
-        sh 'nyc --reporter=lcov --reporter=text-summary mocha --recursive'
-        sh 'nyc report --reporter=html'
-      }
-      post {
-        always {
-          archiveArtifacts artifacts: 'coverage/**', fingerprint: true
-        }
-      }
+  steps {
+    // run tests
+    sh 'npm test'
+
+    // generate LCOV + console summary
+    sh 'npx nyc --reporter=lcov --reporter=text-summary mocha --recursive'
+
+    // emit the HTML report into coverage/
+    sh 'npx nyc report --reporter=html'
     }
+    post {
+      always {
+       // archive whatever is in coverage/
+       archiveArtifacts artifacts: 'coverage/**', fingerprint: true
+      }
+     }
+   }
 
     stage('Security Audit') {
       steps {
