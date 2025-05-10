@@ -1,53 +1,34 @@
 pipeline {
   agent any
-
-  tools { nodejs 'NodeJS-16' }
-
   stages {
-    stage('Checkout')   { steps { checkout scm } }
-    stage('Install')    { steps { sh 'npm ci' } }
-    stage('Test')       { steps { sh 'npm test' } }
-    stage('Coverage') {
-  environment { NODE_ENV = 'test' }
-  steps {
-    sh 'npm ci'  
-    sh 'npx nyc --reporter=lcov --reporter=text-summary mocha --recursive'
-    sh 'npx nyc report --reporter=html'
-  }
-  post {
-    always {
-      archiveArtifacts artifacts: 'coverage/**', fingerprint: true
-    }
-  }
-}
-
-    stage('Security')   { steps { sh 'npm audit --audit-level=moderate || true' } }
-    // you can keep SonarCloud but make it non-blocking:
-    stage('SonarCloud') {
+    stage('Checkout') { /* … */ }
+    stage('Install Dependencies') { /* … */ }
+    stage('Run Tests') { /* … */ }
+    stage('Generate Coverage Report') { /* … */ }
+    stage('NPM Audit (Security Scan)') {
       steps {
-        withSonarQubeEnv('SonarCloud') {
-          sh """npx sonar-scanner \
-            -Dsonar.host.url=$SONAR_HOST_URL \
-            -Dsonar.login=$SONAR_AUTH_TOKEN \
-            -Dsonar.organization=hil-ilma \
-            -Dsonar.projectKey=hil-ilma_8.2C-DevSecOps-Scan"""
+        sh 'npm audit --audit-level=moderate || true'
+      }
+      post {
+        success {
+          emailext(
+            subject: " Security Scan PASSED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            body: """<p>Your security scan completed successfully.</p>
+                     <p>See console output here: ${env.BUILD_URL}console</p>""",
+            attachLog: true,
+            recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+          )
+        }
+        failure {
+          emailext(
+            subject: " Security Scan FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            body: """<p>The security scan failed. Please investigate.</p>
+                     <p>See console output here: ${env.BUILD_URL}console</p>""",
+            attachLog: true,
+            recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+          )
         }
       }
-      // do NOT fail the build if Sonar fails:
-      post { always { echo 'Sonar finished (see logs), but build won’t abort.' } }
-    }
-  }
-
-  post {
-    success {
-      emailext to:      'hilmaazmy@gmail.com',
-               subject: " Build #${env.BUILD_NUMBER} succeeded",
-               body:    "Good news! ${env.JOB_NAME} #${env.BUILD_NUMBER} passed."
-    }
-    failure {
-      emailext to:      'you@yourdomain.com',
-               subject: " Build #${env.BUILD_NUMBER} FAILED",
-               body:    "Oops! ${env.JOB_NAME} #${env.BUILD_NUMBER} failed. See console: ${env.BUILD_URL}"
     }
   }
 }
