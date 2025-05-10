@@ -1,13 +1,16 @@
 pipeline {
   agent any
 
-  // disable the built-in automatic checkout
+  // don’t run the automatic “Checkout SCM” stage
   options {
     skipDefaultCheckout()
   }
 
-  tools {
-    nodejs 'NodeJS-16'
+  // install NodeJS-16 into NODE_HOME and add to PATH,
+  // but don’t create a separate stage for it
+  environment {
+    NODE_HOME = tool name: 'NodeJS-16', type: 'jenkins.plugins.nodejs.tools.NodeJSInstallation'
+    PATH      = "${NODE_HOME}/bin:${env.PATH}"
   }
 
   stages {
@@ -41,7 +44,7 @@ pipeline {
         sh 'npm audit --audit-level=moderate || true'
       }
     }
-    // SonarCloud stage removed
+    // SonarCloud stage has been removed
   }
 
   post {
