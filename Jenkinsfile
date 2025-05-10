@@ -1,13 +1,8 @@
 pipeline {
   agent any
 
-  tools {
-    nodejs 'NodeJS'            // your NodeJS installation name
-  }
-
   environment {
-    // SONAR_TOKEN must be defined in Jenkins Credentials (as a Secret Text)
-    SONAR_TOKEN        = credentials('sonar-cloud-token')  
+    SONAR_TOKEN        = credentials('sonar-cloud-token')
     SONAR_ORGANIZATION = 'hil-ilma'
     SONAR_PROJECT_KEY  = 'hil-ilma_8.2C-DevSecOps-Scan'
   }
@@ -40,7 +35,6 @@ pipeline {
 
     stage('Security Audit') {
       steps {
-        // don’t fail the build on audit issues
         sh 'npm audit --audit-level=moderate || true'
       }
     }
@@ -48,7 +42,6 @@ pipeline {
     stage('SonarCloud Analysis') {
       steps {
         withSonarQubeEnv('SonarCloud') {
-          // use sonar.token (sonar.login is deprecated)
           sh """
             npx sonar-scanner \
               -Dsonar.token=$SONAR_TOKEN \
@@ -61,8 +54,7 @@ pipeline {
 
     stage('Quality Gate') {
       steps {
-        timeout(time: 1, unit: 'HOURS') {
-          // abortPipeline: true will fail the build if the gate is RED
+        timeout(time:1, unit:'HOURS') {
           waitForQualityGate abortPipeline: true
         }
       }
