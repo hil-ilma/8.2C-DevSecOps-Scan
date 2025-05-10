@@ -34,22 +34,22 @@ pipeline {
     stage('Checkout')   { steps { checkout scm } }
     stage('Install')    { steps { sh 'npm ci' } }
 
-    stage('Test & Coverage') {
-      steps {
-        sh '''
-          # point your app at the containers
-          export MONGO_HOST=ci-mongo
-          export MONGO_PORT=27017
-          export MYSQL_HOST=ci-mysql
-          export MYSQL_PORT=3306
-
-          npm test
-          npx nyc --reporter=lcov --reporter=text-summary mocha --recursive
-          npx nyc report --reporter=html
-        '''
-      }
-      post { always { archiveArtifacts artifacts: 'coverage/**', fingerprint: true } }
+stage('Test & Coverage') {
+  environment {
+    NODE_ENV   = 'test'
+    SKIP_DB    = 'true'
+  }
+  steps {
+    sh 'npm test'
+    sh 'npx nyc --reporter=lcov --reporter=text-summary mocha --recursive'
+    sh 'npx nyc report --reporter=html'
+  }
+  post {
+    always {
+      archiveArtifacts artifacts: 'coverage/**', fingerprint: true
     }
+  }
+}
 
     stage('Security Audit') {
       steps { sh 'npm audit --audit-level=moderate || true' }

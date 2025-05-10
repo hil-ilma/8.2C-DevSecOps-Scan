@@ -28,12 +28,11 @@ const logger         = require('morgan');
 const errorHandler   = require('errorhandler');
 const marked         = require('marked');
 const fileUpload     = require('express-fileupload');
-const dust           = require('dustjs-linkedin');
 const dustHelpers    = require('dustjs-helpers');
 const cons           = require('consolidate');
 const hbs            = require('hbs');
 
-// Database connections
+// Database connections (will no-op in test mode)
 require('./mongoose-db');
 require('./typeorm-db');
 
@@ -56,7 +55,11 @@ cons.dust.helpers = dustHelpers;
 // Middleware
 app.use(logger('dev'));
 app.use(methodOverride());
-app.use(session({ secret: 'keyboard cat', name: 'connect.sid', cookie: { path: '/' } }));
+app.use(session({
+  secret: 'keyboard cat',
+  name: 'connect.sid',
+  cookie: { path: '/' }
+}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(fileUpload());
