@@ -7,11 +7,20 @@ pipeline {
     stage('Checkout')   { steps { checkout scm } }
     stage('Install')    { steps { sh 'npm ci' } }
     stage('Test')       { steps { sh 'npm test' } }
-    stage('Coverage')   { steps {
-        sh 'npx nyc --reporter=lcov --reporter=text-summary mocha --recursive'
-        archiveArtifacts artifacts: 'coverage/**', fingerprint: true
-      }
+    stage('Coverage') {
+  environment { NODE_ENV = 'test' }
+  steps {
+    sh 'npm ci'  
+    sh 'npx nyc --reporter=lcov --reporter=text-summary mocha --recursive'
+    sh 'npx nyc report --reporter=html'
+  }
+  post {
+    always {
+      archiveArtifacts artifacts: 'coverage/**', fingerprint: true
     }
+  }
+}
+
     stage('Security')   { steps { sh 'npm audit --audit-level=moderate || true' } }
     // you can keep SonarCloud but make it non-blocking:
     stage('SonarCloud') {
