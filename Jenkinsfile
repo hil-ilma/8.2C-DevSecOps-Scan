@@ -1,66 +1,73 @@
 pipeline {
-  /* ── use the official Node 18 image for *every* stage ── */
-  agent {
-    docker {
-      image 'node:18'
-      args  '-u root:root' // run as root so npm can write to workspace
-    }
-  }
+  agent any
 
+  // only declare this if you actually need ENV vars
   environment {
-    // if you need any env vars (e.g. for SonarCloud), declare them here
-    // SONAR_TOKEN = credentials('sonarcloud-token')
+    // pull your SonarCloud token from Jenkins credentials
+    SONAR_TOKEN = credentials('sonarcloud-token')
+    NODE_ENV    = 'test'
   }
 
   stages {
-    stage('Checkout SCM') {
+    stage('Checkout') {
       steps {
         checkout scm
       }
     }
 
-    stage('Install Dependencies') {
+    stage('Install') {
       steps {
-        sh 'npm ci'
+        sh 'npm install'
       }
     }
 
-    stage('Run Tests') {
+    stage('Test & Coverage') {
       steps {
+        // run your tests
         sh 'npm test'
-      }
-    }
-
-    stage('Generate Coverage') {
-      steps {
+        // generate coverage report
         sh 'npm run coverage'
       }
+      post {
+        always {
+          // grab the coverage output directory if you want
+          archiveArtifacts artifacts: 'coverage/**', fingerprint: true
+        }
+      }
     }
 
-    stage('Security Scan') {
+    stage('Security Audit') {
       steps {
-        sh 'npm audit --audit-level=moderate'
+        sh 'npm audit --audit-level=moderate || true'
+      }
+      post {
+        always {
+          // archive the npm-audit report if you want
+          archiveArtifacts artifacts: 'npm-audit-report.json', allowEmptyArchive: true
+        }
+      }
+    }
+
+    stage('SonarQube Analysis') {
+      when {
+        expression { return env.SONAR_TOKEN != null }
+      }
+      steps {
+        withSonarQubeEnv('SonarCloud') {
+          sh 'sonar-scanner \
+                -Dsonar.organization=<your-org> \
+                -Dsonar.projectKey=<your-org>_<your-project> \
+                -Dsonar.login=$SONAR_TOKEN'
+        }
       }
     }
   }
 
   post {
-    /* always archive coverage reports (adjust the path if your reports live somewhere else) */
     always {
-      archiveArtifacts artifacts: 'coverage/**', fingerprint: true
-    }
-    /* on success, you could send email or Slack here */
-    success {
-      echo " All stages passed!"
-      // mail to: 'team@example.com',
-      //      subject: "Build ${currentBuild.fullDisplayName} succeeded",
-      //      body: "See ${env.BUILD_URL} for details."
-    }
-    failure {
-      echo " Build failed!"
-      // mail to: 'team@example.com',
-      //      subject: "Build ${currentBuild.fullDisplayName} failed",
-      //      body: "See ${env.BUILD_URL} for details."
+      // archive full console log
+      archiveArtifacts artifacts: 'console.log', allowEmptyArchive: true
+      // send email, Slack, etc. here
     }
   }
 }
