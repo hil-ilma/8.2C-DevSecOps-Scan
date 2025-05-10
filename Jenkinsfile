@@ -6,6 +6,10 @@ pipeline {
     SONAR_ORGANIZATION = 'hil-ilma'
     SONAR_PROJECT_KEY  = 'hil-ilma_8.2C-DevSecOps-Scan'
   }
+tools {
+  nodejs 'NodeJS-16'
+}
+
 
   stages {
     stage('Checkout') {
