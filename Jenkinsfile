@@ -20,19 +20,20 @@ pipeline {
       steps { sh 'npm ci' }
     }
 
-    stage('Test & Coverage') {
-    steps {
-      sh 'npm test'
-      sh 'cross-env NODE_ENV=test npx nyc --reporter=lcov --reporter=text-summary mocha --recursive'
-      sh 'npx nyc report --reporter=html'
-    }
-    post {
-      always {
-        archiveArtifacts artifacts: 'coverage/**', fingerprint: true
-      }
+stage('Test & Coverage') {
+  environment { NODE_ENV = 'test' }
+  steps {
+    sh 'npm ci'
+    sh 'npm test'
+    sh 'npx nyc --reporter=lcov --reporter=text-summary mocha --recursive'
+    sh 'npx nyc report --reporter=html'
+  }
+  post {
+    always {
+      archiveArtifacts artifacts: 'coverage/**', fingerprint: true
     }
   }
-
+}
 
     stage('Security Audit') {
       steps {
